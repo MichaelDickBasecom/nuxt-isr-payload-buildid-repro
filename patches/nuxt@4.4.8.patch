@@ -1,0 +1,31 @@
+diff --git a/dist/app/composables/payload.js b/dist/app/composables/payload.js
+index 9961a69e9ece145cca64084180e55d0df656a476..22143ce2ecc1b4b4f33919e58bf3bce0a3a062f8 100644
+--- a/dist/app/composables/payload.js
++++ b/dist/app/composables/payload.js
+@@ -67,13 +67,25 @@ async function _getPayloadURL(url, opts = {}) {
+   const baseOrCdnURL = cdnURL && await isPrerendered(url) ? cdnURL : config.app.baseURL;
+   return joinURL(baseOrCdnURL, u.pathname, filename + (hash ? `?${hash}` : ""));
+ }
++function _pathFromPayloadURL(payloadURL) {
++  const { pathname } = new URL(payloadURL, "http://localhost");
++  const suffix = `/${filename}`;
++  if (pathname.endsWith(suffix)) {
++    return pathname.slice(0, -suffix.length) || "/";
++  }
++  return pathname;
++}
+ async function _importPayload(payloadURL) {
+   if (import.meta.server || !payloadExtraction) {
+     return null;
+   }
+   try {
+     if (renderJsonPayloads) {
+-      const res = await fetch(payloadURL, import.meta.dev ? {} : { cache: "force-cache" });
++      const fetchOptions = {};
++      if (!import.meta.dev) {
++        fetchOptions.cache = await isPrerendered(_pathFromPayloadURL(payloadURL)) ? "force-cache" : "default";
++      }
++      const res = await fetch(payloadURL, fetchOptions);
+       if (!res.ok) {
+         if (import.meta.dev) {
+           console.warn(`[nuxt] Cannot load payload ${payloadURL}: ${res.status} ${res.statusText}`);

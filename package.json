@@ -10,8 +10,12 @@
     "postinstall": "nuxt prepare"
   },
   "dependencies": {
-    "nuxt": "^4.4.8",
+    "nuxt": "4.4.8",
     "vue": "^3.5.35",
     "vue-router": "^5.1.0"
+  },
+  "patchedDependencies": {
+    "nuxt@4.4.8": "patches/nuxt@4.4.8.patch",
+    "@nuxt/nitro-server@4.4.8": "patches/@nuxt%2Fnitro-server@4.4.8.patch"
   }
 }

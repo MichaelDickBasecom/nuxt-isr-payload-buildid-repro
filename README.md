@@ -1,6 +1,31 @@
 # nuxt-isr-payload-buildid-repro
 
-Minimal repro: **stale `_payload.json?{buildId}` on Vercel ISR** during client-side navigation.
+Minimal repro: **stale `_payload.json?{buildId}` on ISR/SWR** during client-side navigation.
+
+## Branches
+
+| Branch | Purpose |
+|--------|---------|
+| `main` | Original broken repro (`payloadExtraction: 'client'`, ISR, npm `nuxt`) |
+| `suggested-fix` | Client-only patch (`bun patch` on `nuxt@4.4.8`), [Vercel deploy](https://nuxt-isr-payload-buildid-repro-fix.vercel.app/) |
+| `suggested-fix-full` | Full fix (client + server) via dual `bun patch` on `nuxt` + `@nuxt/nitro-server` — **local preview** |
+
+### `suggested-fix-full` setup
+
+Full two-layer fix via `bun patch` on published `nuxt@4.4.8` + `@nuxt/nitro-server@4.4.8` (patches match the proposed monorepo changes in [nuxt/nuxt#35352](https://github.com/nuxt/nuxt/issues/35352)):
+
+```bash
+bun install
+bun run build && bun run preview
+```
+
+Uses `payloadExtraction: true` + `swr: 60` (Markiz9999 document-load scenario). Verify:
+
+Client patch: in DevTools Network, `_payload.json` fetches on client nav should not use immortal `force-cache` (ISR/SWR routes use `default`).
+
+Server patch: `renderPayloadResponse` sets `Cache-Control: public, max-age=0, must-revalidate` for ISR/SWR payload routes (may be merged with route-rule `s-maxage` by Nitro — the client `default` cache mode is the critical browser fix).
+
+Then in the browser: hard-reload `/b` three times across SWR TTL — HTML and payload should stay in sync (no hydration error).
 
 ## Bug
 

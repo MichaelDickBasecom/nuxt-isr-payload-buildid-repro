@@ -2,11 +2,12 @@ export default defineNuxtConfig({
   compatibilityDate: '2025-07-15',
 
   experimental: {
-    payloadExtraction: 'client',
+    // Markiz9999 repro: split payload → HTML/payload cache desync on document load
+    payloadExtraction: true,
   },
 
   routeRules: {
-    '/': { isr: 120 },
-    '/b': { isr: 120 },
+    '/': { swr: 60 },
+    '/b': { swr: 60 },
   },
 })
