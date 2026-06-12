@@ -8,11 +8,14 @@ Minimal repro: **stale `_payload.json?{buildId}` on ISR/SWR** during client-side
 |--------|---------|
 | `main` | Original broken repro (`payloadExtraction: 'client'`, ISR, npm `nuxt`) |
 | `suggested-fix` | Client-only patch (`bun patch` on `nuxt@4.4.8`), [Vercel deploy](https://nuxt-isr-payload-buildid-repro-fix.vercel.app/) |
-| `suggested-fix-full` | Full fix (client + server) via dual `bun patch` on `nuxt` + `@nuxt/nitro-server` — **local preview** |
+| `suggested-fix-full` | Full client fix (`bun patch` on `nuxt@4.4.8`), `payloadExtraction: true` + `swr` — [Vercel deploy](https://nuxt-isr-payload-buildid-repro-fix-full.vercel.app/) |
 
 ### `suggested-fix-full` setup
 
-Full two-layer fix via `bun patch` on published `nuxt@4.4.8` + `@nuxt/nitro-server@4.4.8` (patches match the proposed monorepo changes in [nuxt/nuxt#35352](https://github.com/nuxt/nuxt/issues/35352)):
+Client-only patch on `nuxt@4.4.8` (matches proposed monorepo changes in [nuxt/nuxt#35352](https://github.com/nuxt/nuxt/issues/35352)):
+
+1. ISR/SWR payload fetches use `cache: 'default'` instead of immortal `force-cache`
+2. On document load, if inline HTML `prerenderedAt` ≠ external `_payload.json`, refetch with cache bust + `no-store`
 
 ```bash
 bun install
@@ -21,11 +24,8 @@ bun run build && bun run preview
 
 Uses `payloadExtraction: true` + `swr: 60` (Markiz9999 document-load scenario). Verify:
 
-Client patch: in DevTools Network, `_payload.json` fetches on client nav should not use immortal `force-cache` (ISR/SWR routes use `default`).
-
-Server patch: `renderPayloadResponse` sets `Cache-Control: public, max-age=0, must-revalidate` for ISR/SWR payload routes (may be merged with route-rule `s-maxage` by Nitro — the client `default` cache mode is the critical browser fix).
-
-Then in the browser: hard-reload `/b` three times across SWR TTL — HTML and payload should stay in sync (no hydration error).
+- DevTools: client-nav `_payload.json?{buildId}` uses `default` cache, not `force-cache`
+- Hard-reload `/b` across SWR TTL: displayed time stays in sync with HTML (no stale external payload overwriting inline data)
 
 ## Bug
 

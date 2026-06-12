@@ -15,7 +15,6 @@
     "vue-router": "^5.1.0"
   },
   "patchedDependencies": {
-    "nuxt@4.4.8": "patches/nuxt@4.4.8.patch",
-    "@nuxt/nitro-server@4.4.8": "patches/@nuxt%2Fnitro-server@4.4.8.patch"
+    "nuxt@4.4.8": "patches/nuxt@4.4.8.patch"
   }
 }

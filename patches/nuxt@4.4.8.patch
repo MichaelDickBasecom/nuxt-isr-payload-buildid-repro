@@ -1,11 +1,12 @@
 diff --git a/dist/app/composables/payload.js b/dist/app/composables/payload.js
-index 9961a69e9ece145cca64084180e55d0df656a476..22143ce2ecc1b4b4f33919e58bf3bce0a3a062f8 100644
+index 9961a69e9ece145cca64084180e55d0df656a476..b8f3d157378fd6ef9a940a4427d8fd524485fc4d 100644
 --- a/dist/app/composables/payload.js
 +++ b/dist/app/composables/payload.js
-@@ -67,13 +67,25 @@ async function _getPayloadURL(url, opts = {}) {
+@@ -67,13 +67,30 @@ async function _getPayloadURL(url, opts = {}) {
    const baseOrCdnURL = cdnURL && await isPrerendered(url) ? cdnURL : config.app.baseURL;
    return joinURL(baseOrCdnURL, u.pathname, filename + (hash ? `?${hash}` : ""));
  }
+-async function _importPayload(payloadURL) {
 +function _pathFromPayloadURL(payloadURL) {
 +  const { pathname } = new URL(payloadURL, "http://localhost");
 +  const suffix = `/${filename}`;
@@ -14,7 +15,7 @@ index 9961a69e9ece145cca64084180e55d0df656a476..22143ce2ecc1b4b4f33919e58bf3bce0
 +  }
 +  return pathname;
 +}
- async function _importPayload(payloadURL) {
++async function _importPayload(payloadURL, opts = {}) {
    if (import.meta.server || !payloadExtraction) {
      return null;
    }
@@ -23,9 +24,41 @@ index 9961a69e9ece145cca64084180e55d0df656a476..22143ce2ecc1b4b4f33919e58bf3bce0
 -      const res = await fetch(payloadURL, import.meta.dev ? {} : { cache: "force-cache" });
 +      const fetchOptions = {};
 +      if (!import.meta.dev) {
-+        fetchOptions.cache = await isPrerendered(_pathFromPayloadURL(payloadURL)) ? "force-cache" : "default";
++        const path = _pathFromPayloadURL(payloadURL);
++        if (opts.fresh) {
++          fetchOptions.cache = "no-store";
++        } else {
++          fetchOptions.cache = await isPrerendered(path) ? "force-cache" : "default";
++        }
 +      }
 +      const res = await fetch(payloadURL, fetchOptions);
        if (!res.ok) {
          if (import.meta.dev) {
            console.warn(`[nuxt] Cannot load payload ${payloadURL}: ${res.status} ${res.statusText}`);
+@@ -93,6 +110,17 @@ async function _importPayload(payloadURL) {
+   }
+   return null;
+ }
++async function _loadExternalPayload(src, inlinePrerenderedAt) {
++  let externalData = await _importPayload(src);
++  if (inlinePrerenderedAt != null && externalData?.prerenderedAt != null && externalData.prerenderedAt !== inlinePrerenderedAt) {
++    const freshURL = await _getPayloadURL(_pathFromPayloadURL(src), { fresh: true });
++    externalData = await _importPayload(freshURL, { fresh: true }) ?? externalData;
++    if (externalData?.prerenderedAt !== inlinePrerenderedAt) {
++      return void 0;
++    }
++  }
++  return externalData;
++}
+ function _shouldLoadPrerenderedPayload(rules) {
+   if (rules.redirect) {
+     return false;
+@@ -149,7 +177,7 @@ export async function getNuxtClientPayload() {
+     return {};
+   }
+   const inlineData = await parsePayload(el.textContent || "");
+-  const externalData = el.dataset.src ? await _importPayload(el.dataset.src) : void 0;
++  const externalData = el.dataset.src ? await _loadExternalPayload(el.dataset.src, inlineData.prerenderedAt) : void 0;
+   payloadCache = {
+     ...inlineData,
+     ...externalData,
